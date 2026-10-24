@@ -10,7 +10,7 @@
  */
 package comp3011;
 
-import java.util.Map;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -150,11 +150,18 @@ public class CommandLineController {
                 videoFile = null;
             }
         } else {
-            if (!helpRequested) {
+            if (!isHelpOnlyRequest()) {
                 errorMessage = "No video file specified.";
             }
         }
     }
+
+    
+    private boolean isHelpOnlyRequest() {
+        return args.length == 1
+                && ("-h".equals(args[0]) || "--help".equals(args[0]));
+    }
+
 
 
     private boolean isStackedEffectOption(String arg) {
