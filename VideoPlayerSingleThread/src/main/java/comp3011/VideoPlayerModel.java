@@ -341,11 +341,30 @@ public class VideoPlayerModel {
                 }
             }
 
+                        
             int frameNumber = grabber.getFrameNumber();
             InfoFrame info = new InfoFrame(frameNumber, timestampUs);
-            processFrame(frame, info);
 
+            // Measure the time spent applying video effects.
+            long processingStartNs = System.nanoTime();
+            processFrame(frame, info);
+            long processingTimeMs =
+                    (System.nanoTime() - processingStartNs) / 1_000_000;
+
+            // Measure the time spent converting the frame for JavaFX.
+            long conversionStartNs = System.nanoTime();
             Image image = converter.convert(frame);
+            long conversionTimeMs =
+                    (System.nanoTime() - conversionStartNs) / 1_000_000;
+
+            // Print timings when either operation takes 10 ms or longer.
+            if (processingTimeMs >= 10 || conversionTimeMs >= 10) {
+                System.out.println(
+                        "Frame " + frameNumber
+                        + " | Effects: " + processingTimeMs + " ms"
+                        + " | Conversion: " + conversionTimeMs + " ms");
+            }
+
             long relativeTimestampUs = Math.max(0, timestampUs - firstTimestampUs);
             long logicalTimestampUs = logicalPlaybackBaseUs + relativeTimestampUs;
             long targetTimeNs = playbackStartNs + relativeTimestampUs * 1_000L;
