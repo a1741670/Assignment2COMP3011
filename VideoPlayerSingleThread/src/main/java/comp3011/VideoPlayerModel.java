@@ -227,25 +227,58 @@ public class VideoPlayerModel {
         notifyStatusChanged(videoFile.getName());
 
         try {
+            long startupStartNs = System.nanoTime();
+
             openPlaybackResources(startTimestampUs);
             resetPlaybackClock(currentTimestampUs);
             playbackOpen = true;
             playbackTimer.start();
+
+            long firstFrameStartNs = System.nanoTime();
             prepareNextFrame();
+
+            long firstFrameMs =
+                    (System.nanoTime() - firstFrameStartNs) / 1_000_000;
+
+            long totalStartupMs =
+                    (System.nanoTime() - startupStartNs) / 1_000_000;
+
+            System.out.println(
+                    "Startup | First frame preparation: "
+                    + firstFrameMs + " ms"
+                    + " | Total startup: " + totalStartupMs + " ms");
+
             notifyPlaybackStateChanged();
         } catch (Exception e) {
             handlePlaybackError(e);
         }
     }
 
+    
+    
+    
     private void openPlaybackResources(long startTimestampUs) throws Exception {
+        long totalStart = System.nanoTime();
+
         converter = new JavaFXFrameConverter();
+
+        long stepStart = System.nanoTime();
         grabber = new FFmpegFrameGrabber(videoFile);
+        System.out.println("Create grabber: "
+                + (System.nanoTime() - stepStart) / 1_000_000 + " ms");
+
         grabber.setImageMode(FrameGrabber.ImageMode.COLOR);
         grabber.setSampleMode(FrameGrabber.SampleMode.SHORT);
-        grabber.start();
 
-        notifyVideoSizeChanged(grabber.getImageWidth(), grabber.getImageHeight());
+        stepStart = System.nanoTime();
+        grabber.start();
+        System.out.println("Grabber start: "
+                + (System.nanoTime() - stepStart) / 1_000_000 + " ms");
+
+        stepStart = System.nanoTime();
+        notifyVideoSizeChanged(
+                grabber.getImageWidth(),
+                grabber.getImageHeight());
 
         frameRate = grabber.getFrameRate();
         intFrameRate = (int) Math.round(frameRate);
@@ -260,15 +293,37 @@ public class VideoPlayerModel {
                 : NO_SEEK_REQUEST;
 
         audioAvailable = grabber.hasAudio();
+
+        System.out.println("Metadata and video size: "
+                + (System.nanoTime() - stepStart) / 1_000_000 + " ms");
+
+        stepStart = System.nanoTime();
         audioPlayer = new AudioPlayer();
+
         if (audioAvailable) {
-            audioPlayer.open(grabber.getSampleRate(), grabber.getAudioChannels());
+            audioPlayer.open(
+                    grabber.getSampleRate(),
+                    grabber.getAudioChannels());
         }
+
+        System.out.println("Audio setup: "
+                + (System.nanoTime() - stepStart) / 1_000_000 + " ms");
+
+        stepStart = System.nanoTime();
 
         if (startTimestampUs > 0) {
             grabber.setTimestamp(startTimestampUs);
         }
+
+        System.out.println("Seek setup: "
+                + (System.nanoTime() - stepStart) / 1_000_000 + " ms");
+
+        System.out.println("Total resource setup: "
+                + (System.nanoTime() - totalStart) / 1_000_000 + " ms");
     }
+
+
+
 
     private void resetPlaybackClock(long logicalTimestampUs) {
         pendingAudio.clear();
